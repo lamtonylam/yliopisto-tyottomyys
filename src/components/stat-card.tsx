@@ -26,7 +26,7 @@ export function StatCard({ label, value, hint, tone = "default", className }: St
             {label}
           </p>
         </div>
-        <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
+        <p className="mt-2 text-2xl font-semibold tracking-tight break-words tabular-nums sm:text-3xl">{value}</p>
         {hint ? (
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>
         ) : null}

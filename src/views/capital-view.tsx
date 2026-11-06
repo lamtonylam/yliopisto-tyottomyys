@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { groupByCity, poolBySchool, type SchoolRow } from "@/lib/derive";
 import { fmtEur, fmtInt, fmtPct, fmtPp, fmtSignedEur } from "@/lib/format";
-import { DEFAULT_IT_DEGREES, ICT_FIELD } from "@/lib/labels";
+import { DEGREE_CLUSTERS } from "@/lib/labels";
 import { niceDomain, percentage, poolRows, type Pooled } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 import type { DataFile } from "@/types";
@@ -90,29 +90,38 @@ function formatMetric(metric: Metric, value: number | null): string {
 }
 
 export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
-  const ictDegrees = useMemo(
+  // Selectable pool = union of all cluster degrees (name-matched, deduped).
+  const poolDegrees = useMemo(
     () =>
-      data.degrees
+      DEGREE_CLUSTERS.flatMap((cluster) => cluster.degrees)
+        .flatMap((name) => data.degrees.find((degree) => degree.name === name) ?? [])
         .filter(
-          (degree) =>
-            degree.field === ICT_FIELD &&
-            // Yliopistosta vain ylemmät (maisterit): kandit eivät ole vertailukelpoisia,
-            // sillä ne ovat tyypillisesti välitutkintoja matkalla maisteriin.
-            // AMK:sta mukana tradenomi (alempi), joka on työelämätutkinto.
-            ((degree.sector === "university" && degree.level === "upper") ||
-              degree.name === "Tradenomi (AMK), tietojenkäsittely"),
+          (degree, index, all) => all.findIndex((other) => other.id === degree.id) === index,
         )
         .sort((a, b) => b.national.graduates - a.national.graduates),
     [data.degrees],
   );
 
-  const defaultIds = useMemo(
-    () =>
-      ictDegrees
-        .filter((degree) => DEFAULT_IT_DEGREES.some((name) => name === degree.name))
-        .map((degree) => degree.id),
-    [ictDegrees],
-  );
+  // Resolved degree ids per cluster, in cluster order.
+  const clusterIds = useMemo(() => {
+    const byName = new Map(poolDegrees.map((degree) => [degree.name, degree.id] as const));
+    return new Map(
+      DEGREE_CLUSTERS.map(
+        (cluster) =>
+          [
+            cluster.id,
+            cluster.degrees.flatMap((name) => byName.get(name) ?? []),
+          ] as const,
+      ),
+    );
+  }, [poolDegrees]);
+
+  const defaultIds = useMemo(() => {
+    const fallback = DEGREE_CLUSTERS[0];
+    const names = fallback.defaultSelected ?? fallback.degrees;
+    const byName = new Map(poolDegrees.map((degree) => [degree.name, degree.id] as const));
+    return names.flatMap((name) => byName.get(name) ?? []);
+  }, [poolDegrees]);
 
   const [selected, setSelected] = useState<string[]>(defaultIds);
   const [metric, setMetric] = useState<Metric>("unemployment");
@@ -120,8 +129,8 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
   const [minResidents, setMinResidents] = useState("0");
 
   const degrees = useMemo(
-    () => ictDegrees.filter((degree) => selected.includes(degree.id)),
-    [ictDegrees, selected],
+    () => poolDegrees.filter((degree) => selected.includes(degree.id)),
+    [poolDegrees, selected],
   );
 
   const rows = useMemo(() => {
@@ -249,18 +258,32 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
         <CardHeader>
           <SectionHeader
             title="Analyysin rajaus"
-            description="ICT-maisterit yliopistoissa + Tradenomi (AMK), tietojenkäsittely. Oletuksena kaksi maisteritutkintoa: Tietojenkäsittelytiede (fil. maist.) ja Tietotekniikka (dipl.ins.)."
-            action={
+              description="Esivalitut tutkintokokonaisuudet (klusterit). Voit myös valita tutkintoja yksitellen alta."
+              action={
               <div className="flex flex-wrap items-center gap-1.5">
-                <Button size="sm" variant="outline" onClick={() => setSelected(defaultIds)}>
-                  IT-maisterit
-                </Button>
+                {DEGREE_CLUSTERS.map((cluster) => {
+                  const ids = clusterIds.get(cluster.id) ?? [];
+                  const isActive =
+                    ids.length > 0 &&
+                    selected.length === ids.length &&
+                    ids.every((id) => selected.includes(id));
+                  return (
+                    <Button
+                      key={cluster.id}
+                      size="sm"
+                      variant={isActive ? "secondary" : "outline"}
+                      onClick={() => setSelected(ids)}
+                    >
+                      {cluster.label}
+                    </Button>
+                  );
+                })}
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setSelected(ictDegrees.map((degree) => degree.id))}
+                  onClick={() => setSelected(poolDegrees.map((degree) => degree.id))}
                 >
-                  Kaikki ICT
+                  Kaikki
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
                   Tyhjennä
@@ -270,30 +293,69 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
           />
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {ictDegrees.map((degree) => {
-              const active = selected.includes(degree.id);
+          <div className="space-y-4">
+            {DEGREE_CLUSTERS.map((cluster) => {
+              const ids = clusterIds.get(cluster.id) ?? [];
+              const items = ids.flatMap(
+                (id) => poolDegrees.find((degree) => degree.id === id) ?? [],
+              );
+              if (items.length === 0) return null;
+              const allActive = ids.length > 0 && ids.every((id) => selected.includes(id));
               return (
-                <div
-                  key={degree.id}
-                  className={cn(
-                    "flex items-start gap-2.5 rounded-lg border p-2.5 transition-colors",
-                    active ? "border-capital/40 bg-capital/5" : "hover:bg-muted/50",
-                  )}
-                >
-                  <Checkbox
-                    id={degree.id}
-                    checked={active}
-                    onCheckedChange={() => toggleDegree(degree.id)}
-                    className="mt-0.5"
-                  />
-                  <label htmlFor={degree.id} className="min-w-0 flex-1 cursor-pointer">
-                    <span className="block truncate text-xs font-medium">{degree.name}</span>
-                    <span className="block text-[11px] text-muted-foreground">
-                      {fmtInt(degree.national.graduates)} valmistunutta · {degree.schools.length}{" "}
-                      oppilaitosta
-                    </span>
-                  </label>
+                <div key={cluster.id}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                      {cluster.label}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() =>
+                        setSelected((current) =>
+                          allActive
+                            ? current.filter((id) => !ids.includes(id))
+                            : [...new Set([...current, ...ids])],
+                        )
+                      }
+                    >
+                      {allActive ? "Poista valinta" : "Valitse kaikki"}
+                    </Button>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {items.map((degree) => {
+                      const active = selected.includes(degree.id);
+                      const checkboxId = `${cluster.id}-${degree.id}`;
+                      return (
+                        <div
+                          key={degree.id}
+                          className={cn(
+                            "flex items-start gap-2.5 rounded-lg border p-2.5 transition-colors",
+                            active ? "border-capital/40 bg-capital/5" : "hover:bg-muted/50",
+                          )}
+                        >
+                          <Checkbox
+                            id={checkboxId}
+                            checked={active}
+                            onCheckedChange={() => toggleDegree(degree.id)}
+                            className="mt-0.5"
+                          />
+                          <label
+                            htmlFor={checkboxId}
+                            className="min-w-0 flex-1 cursor-pointer"
+                          >
+                            <span className="block text-xs font-medium break-words">
+                              {degree.name}
+                            </span>
+                            <span className="block text-[11px] text-muted-foreground">
+                              {fmtInt(degree.national.graduates)} valmistunutta ·{" "}
+                              {degree.schools.length} oppilaitosta
+                            </span>
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
@@ -331,8 +393,8 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
               </Select>
             </div>
             <p className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
-              Pääkaupunkiseutu = Helsingin ja Espoon yliopistot (HY, Aalto). Muut ryhmät
-              määräytyvät pääkampuksen kaupungin mukaan.
+              Pääkaupunkiseutu = Helsinki, Espoo, Vantaa ja Kauniainen pääkampuksen kaupungin
+              mukaan. Muut ryhmät määräytyvät samoin.
             </p>
           </div>
         </CardContent>
@@ -508,7 +570,7 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
           <Card>
             <CardHeader>
               <SectionHeader
-                title={`Metsäkaavio: ${METRIC_LABEL[metric]} oppilaitoksittain`}
+                title={metric === "unemployment" ? "Työttömyysaste oppilaitoksittain" : "Mediaanitulo oppilaitoksittain"}
                 description="Piste = oppilaitoksen arvo, vinoneliö = ryhmän yhdistetty arvo. Katkoviiva = valittujen tutkintojen yhteinen taso."
               />
             </CardHeader>
@@ -523,7 +585,7 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
                 format={(value) => formatMetric(metric, value)}
                 axisFormat={metric === "income" ? (value) => `${Math.round(value / 1000)} t€` : (value) => `${value} %`}
                 reference={overallValue ?? undefined}
-                ariaLabel={`Metsäkaavio: ${METRIC_LABEL[metric]} pääkaupunkiseudulla ja muualla Suomessa`}
+                ariaLabel={`${METRIC_LABEL[metric]} oppilaitoksittain pääkaupunkiseudulla ja muualla Suomessa`}
               />
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
                 <span>Pisteet kuvaavat oppilaitosten eroja, eivät erojen syitä.</span>
@@ -542,16 +604,72 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
               />
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="space-y-3 sm:hidden">
+                {perDegree.map((item) => (
+                  <button
+                    key={item.degree.id}
+                    type="button"
+                    onClick={() => onOpenDegree(item.degree.id)}
+                    className="block w-full rounded-lg px-3 py-2.5 text-left ring-1 ring-border transition-colors active:bg-muted/50"
+                  >
+                    <span className="block text-sm leading-snug font-medium">
+                      {item.degree.name}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                      {item.degree.schools.length} oppilaitosta
+                    </span>
+                    <span className="mt-2 grid grid-cols-3 gap-2">
+                      <span>
+                        <span className="block text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                          PKS
+                        </span>
+                        <span className="block text-sm font-semibold tabular-nums">
+                          {formatMetric(metric, item.capitalValue)}
+                        </span>
+                      </span>
+                      <span>
+                        <span className="block text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                          Muu
+                        </span>
+                        <span className="block text-sm font-semibold tabular-nums">
+                          {formatMetric(metric, item.otherValue)}
+                        </span>
+                      </span>
+                      <span className="text-right">
+                        <span className="block text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                          Ero
+                        </span>
+                        <span
+                          className={cn(
+                            "block text-sm font-semibold tabular-nums",
+                            item.diff == null
+                              ? "text-muted-foreground"
+                              : (metric === "unemployment" ? item.diff < 0 : item.diff > 0)
+                                ? "text-positive"
+                                : "text-negative",
+                          )}
+                        >
+                          {item.diff == null
+                            ? "–"
+                            : metric === "income"
+                              ? fmtSignedEur(item.diff)
+                              : fmtPp(item.diff)}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tutkinto</TableHead>
-                      <TableHead className="text-right">PKS n</TableHead>
+                      <TableHead className="hidden text-right sm:table-cell">PKS n</TableHead>
                       <TableHead className="text-right whitespace-nowrap">
                         PKS {METRIC_SHORT[metric]}
                       </TableHead>
-                      <TableHead className="text-right">Muu n</TableHead>
+                      <TableHead className="hidden text-right sm:table-cell">Muu n</TableHead>
                       <TableHead className="text-right whitespace-nowrap">
                         Muu {METRIC_SHORT[metric]}
                       </TableHead>
@@ -565,7 +683,7 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
                           <button
                             type="button"
                             onClick={() => onOpenDegree(item.degree.id)}
-                            className="block max-w-[300px] truncate text-left font-medium transition-colors hover:text-capital"
+                            className="block max-w-[200px] text-left font-medium whitespace-normal break-words transition-colors hover:text-capital sm:max-w-[300px] sm:truncate"
                           >
                             {item.degree.name}
                           </button>
@@ -573,13 +691,13 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
                             {item.degree.schools.length} oppilaitosta
                           </span>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="hidden text-right tabular-nums sm:table-cell">
                           {fmtInt(pooledSample(item.capital, metric))}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatMetric(metric, item.capitalValue)}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="hidden text-right tabular-nums sm:table-cell">
                           {fmtInt(pooledSample(item.other, metric))}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
@@ -627,13 +745,46 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
                 label={`Mukana ${degrees.length} tutkintoa`}
                 items={degrees.map((degree) => degree.name)}
               />
-              <div className="overflow-x-auto">
+              <div className="space-y-3 sm:hidden">
+                {cityRows.map((city) => (
+                  <div key={city.city} className="rounded-lg px-3 py-2.5 ring-1 ring-border">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      {city.capital ? (
+                        <span className="size-1.5 shrink-0 rounded-full bg-capital" aria-hidden />
+                      ) : null}
+                      {city.city}
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                      {city.schools.join(", ")}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                          Työttömyys
+                        </p>
+                        <p className="text-sm font-semibold tabular-nums">
+                          {fmtPct(city.unemploymentPct)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                          Mediaanitulo
+                        </p>
+                        <p className="text-sm font-semibold tabular-nums">
+                          {fmtEur(city.medianIncome)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Kaupunki</TableHead>
-                      <TableHead className="text-right">Oppilaitoksia</TableHead>
-                      <TableHead className="text-right">n</TableHead>
+                      <TableHead className="hidden text-right sm:table-cell">Oppilaitoksia</TableHead>
+                      <TableHead className="hidden text-right sm:table-cell">n</TableHead>
                       <TableHead className="text-right">Työttömyys</TableHead>
                       <TableHead className="text-right">Mediaanitulo</TableHead>
                     </TableRow>
@@ -648,14 +799,14 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
                             ) : null}
                             {city.city}
                           </span>
-                          <span className="mt-0.5 block max-w-[340px] truncate text-[11px] text-muted-foreground">
+                          <span className="mt-0.5 block max-w-[240px] text-[11px] whitespace-normal break-words text-muted-foreground sm:max-w-[340px] sm:truncate">
                             {city.schools.join(", ")}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="hidden text-right tabular-nums sm:table-cell">
                           {city.schools.length}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="hidden text-right tabular-nums sm:table-cell">
                           {fmtInt(city.labourForce)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">

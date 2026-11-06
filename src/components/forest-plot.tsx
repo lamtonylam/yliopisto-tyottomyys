@@ -72,13 +72,88 @@ export function ForestPlot({
     return plotLeft + ((clamped - domain[0]) / span) * plotWidth;
   };
   const ticks = Array.from({ length: 5 }, (_, index) => domain[0] + (span * index) / 4);
+  const pct = (value: number) => {
+    const clamped = Math.min(domain[1], Math.max(domain[0], value));
+    return ((clamped - domain[0]) / span) * 100;
+  };
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="overflow-x-auto">
+      {/* Mobile: stacked rows, no horizontal scrolling */}
+      <div className="space-y-6 md:hidden">
+        {reference != null ? (
+          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span
+              className="inline-block h-3 border-l border-dashed border-foreground/45"
+              aria-hidden
+            />
+            Viite: {format(reference)}
+          </p>
+        ) : null}
+        {groups.map((group) => (
+          <div key={group.id}>
+            <div className="flex items-center gap-2">
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: group.color }}
+                aria-hidden
+              />
+              <p className="text-xs font-semibold">{group.label}</p>
+            </div>
+            {group.note ? (
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{group.note}</p>
+            ) : null}
+            <ul className="mt-2 space-y-3">
+              {group.points.map((point) => (
+                <li key={point.id}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 text-[13px] leading-snug font-medium break-words">
+                      {point.label}
+                    </span>
+                    <span className="shrink-0 text-[13px] font-semibold tabular-nums">
+                      {format(point.value)}
+                    </span>
+                  </div>
+                  {point.sublabel ? (
+                    <p className="mt-0.5 text-[11px] break-words text-muted-foreground">
+                      {point.sublabel}
+                    </p>
+                  ) : null}
+                  <div className="relative mt-1.5 h-1.5 rounded-full bg-muted">
+                    {reference != null ? (
+                      <span
+                        className="absolute inset-y-[-3px] w-px border-l border-dashed border-foreground/45"
+                        style={{ left: `${pct(reference)}%` }}
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span
+                      className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                      style={{ left: `${pct(point.value)}%`, background: group.color }}
+                      aria-hidden
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-muted/50 px-2.5 py-2">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+                <span style={{ color: group.color }} aria-hidden>
+                  ◆
+                </span>
+                <span className="truncate">Yhdistetty arvio · n = {group.pooled.n}</span>
+              </span>
+              <span className="shrink-0 text-[13px] font-semibold tabular-nums">
+                {format(group.pooled.value)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
         <svg
           viewBox={`0 0 ${WIDTH} ${height}`}
-          className="h-auto w-full min-w-[720px]"
+          className="h-auto w-full"
           role="img"
           aria-label={ariaLabel}
           style={{ fontVariantNumeric: "tabular-nums" }}
@@ -200,7 +275,7 @@ export function ForestPlot({
           ))}
         </svg>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
+      <div className="mt-3 hidden flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground md:flex">
         {groups.map((group) => (
           <span key={group.id} className="inline-flex items-center gap-1.5">
             <span className="size-2 rounded-full" style={{ background: group.color }} aria-hidden />

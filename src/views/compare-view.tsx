@@ -320,7 +320,7 @@ export function CompareView({ data, degreeId, onSelectDegree, onOpenCapital }: C
                       key={key}
                       className={cn(
                         "whitespace-nowrap",
-                        key === "residents" && "hidden md:table-cell",
+                        (key === "residents" || key === "graduates") && "hidden sm:table-cell",
                         key !== "name" && "text-right",
                       )}
                     >
@@ -353,7 +353,7 @@ export function CompareView({ data, degreeId, onSelectDegree, onOpenCapital }: C
                   return (
                     <TableRow key={school.name}>
                       <TableCell>
-                        <span className="block max-w-[260px] truncate font-medium">
+                        <span className="block max-w-[200px] font-medium whitespace-normal break-words sm:max-w-[260px] sm:truncate">
                           {school.name}
                         </span>
                         <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -361,7 +361,7 @@ export function CompareView({ data, degreeId, onSelectDegree, onOpenCapital }: C
                           {locationOf(school.name).city}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="hidden text-right tabular-nums sm:table-cell">
                         {fmtInt(school.graduates)}
                       </TableCell>
                       <TableCell className="hidden text-right tabular-nums md:table-cell">

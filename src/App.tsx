@@ -180,7 +180,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-6">
         {state.status === "loading" ? (
           <div className="grid min-h-[60vh] place-items-center">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

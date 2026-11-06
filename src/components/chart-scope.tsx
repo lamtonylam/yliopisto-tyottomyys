@@ -13,7 +13,7 @@ export function ChartScope({ label, items, className }: ChartScopeProps) {
   if (items.length === 0) return null;
   return (
     <p
-      className={`mb-3 rounded-md bg-muted/50 px-2.5 py-1.5 text-[11px] leading-relaxed text-muted-foreground ${className ?? ""}`}
+      className={`mb-3 rounded-md bg-muted/50 px-2.5 py-1.5 text-[11px] leading-relaxed break-words text-muted-foreground ${className ?? ""}`}
     >
       <span className="font-medium text-foreground">{label}: </span>
       {items.join(" · ")}

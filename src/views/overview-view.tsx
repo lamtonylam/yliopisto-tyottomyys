@@ -204,7 +204,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Ryhmä</TableHead>
-                  <TableHead className="text-right">Valmistuneet</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Valmistuneet</TableHead>
                   <TableHead className="text-right">Työttömyys</TableHead>
                   <TableHead className="text-right">Mediaanitulo</TableHead>
                 </TableRow>
@@ -227,7 +227,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="hidden text-right tabular-nums sm:table-cell">
                       {fmtInt(row.graduates)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -398,6 +398,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
                       className={cn(
                         "whitespace-nowrap",
                         (key === "field" || key === "schools") && "hidden md:table-cell",
+                        key === "graduates" && "hidden sm:table-cell",
                         key !== "name" && key !== "field" && "text-right",
                       )}
                     >
@@ -435,7 +436,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
                       <button
                         type="button"
                         onClick={() => onOpenDegree(degree.id)}
-                        className="block max-w-[280px] truncate text-left font-medium transition-colors hover:text-capital"
+                        className="block max-w-[200px] text-left font-medium whitespace-normal break-words transition-colors hover:text-capital sm:max-w-[280px] sm:truncate"
                       >
                         {degree.name}
                       </button>
@@ -446,7 +447,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
                     <TableCell className="hidden max-w-[190px] truncate text-muted-foreground md:table-cell">
                       {degree.field}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="hidden text-right tabular-nums sm:table-cell">
                       {fmtInt(degree.national.graduates)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">

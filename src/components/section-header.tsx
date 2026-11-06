@@ -17,7 +17,7 @@ export function SectionHeader({ title, description, action, className }: Section
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="w-full min-w-0 sm:w-auto sm:shrink-0">{action}</div> : null}
     </div>
   );
 }
