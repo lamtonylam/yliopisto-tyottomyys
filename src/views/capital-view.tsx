@@ -95,11 +95,12 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
       data.degrees
         .filter(
           (degree) =>
-            degree.sector === "university" &&
             degree.field === ICT_FIELD &&
-            // Alemmat tutkinnot (kandit) eivät ole vertailukelpoisia:
-            // yliopistossa ne ovat tyypillisesti välitutkintoja matkalla maisteriin.
-            degree.level === "upper",
+            // Yliopistosta vain ylemmät (maisterit): kandit eivät ole vertailukelpoisia,
+            // sillä ne ovat tyypillisesti välitutkintoja matkalla maisteriin.
+            // AMK:sta mukana tradenomi (alempi), joka on työelämätutkinto.
+            ((degree.sector === "university" && degree.level === "upper") ||
+              degree.name === "Tradenomi (AMK), tietojenkäsittely"),
         )
         .sort((a, b) => b.national.graduates - a.national.graduates),
     [data.degrees],
@@ -248,7 +249,7 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
         <CardHeader>
           <SectionHeader
             title="Analyysin rajaus"
-            description="ICT-alat yliopistoissa. Oletuksena kaksi maisteritutkintoa: Tietojenkäsittelytiede (fil. maist.) ja Tietotekniikka (dipl.ins.)."
+            description="ICT-maisterit yliopistoissa + Tradenomi (AMK), tietojenkäsittely. Oletuksena kaksi maisteritutkintoa: Tietojenkäsittelytiede (fil. maist.) ja Tietotekniikka (dipl.ins.)."
             action={
               <div className="flex flex-wrap items-center gap-1.5">
                 <Button size="sm" variant="outline" onClick={() => setSelected(defaultIds)}>
