@@ -93,7 +93,14 @@ export function CapitalView({ data, onOpenDegree }: CapitalViewProps) {
   const ictDegrees = useMemo(
     () =>
       data.degrees
-        .filter((degree) => degree.sector === "university" && degree.field === ICT_FIELD)
+        .filter(
+          (degree) =>
+            degree.sector === "university" &&
+            degree.field === ICT_FIELD &&
+            // Alemmat tutkinnot (kandit) eivät ole vertailukelpoisia:
+            // yliopistossa ne ovat tyypillisesti välitutkintoja matkalla maisteriin.
+            degree.level === "upper",
+        )
         .sort((a, b) => b.national.graduates - a.national.graduates),
     [data.degrees],
   );

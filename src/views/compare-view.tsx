@@ -59,7 +59,6 @@ const INSIGHT_LABELS: Record<Metric, { best: string; worst: string }> = {
 const SHORTCUTS = [
   "Tietojenkäsittelytiede (fil. maist.)",
   "Tietotekniikka (dipl.ins.)",
-  "Tietotekniikka (tekn. kand.)",
   "Tradenomi (AMK), tietojenkäsittely",
 ];
 
