@@ -146,7 +146,11 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
   const outliers = useMemo(() => {
     const eligible = data.degrees.filter(
       (degree) =>
-        degree.national.residents >= 50 && Number.isFinite(degree.national.unemploymentRate),
+        degree.national.residents >= 50 &&
+        Number.isFinite(degree.national.unemploymentRate) &&
+        // Yliopiston alemmat tutkinnot (kandit) eivät ole vertailukelpoisia:
+        // Suomessa ne ovat tyypillisesti välitutkintoja matkalla maisteriin.
+        !(degree.sector === "university" && degree.level === "lower"),
     );
     const sorted = [...eligible].sort(
       (a, b) => a.national.unemploymentRate - b.national.unemploymentRate,
@@ -286,7 +290,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
         <CardHeader>
           <SectionHeader
             title="Työttömyyden kärki ja häntä"
-            description="Tutkinnot, joissa on vähintään 50 Suomessa asuvaa valmistunutta."
+            description="Tutkinnot, joissa on vähintään 50 Suomessa asuvaa valmistunutta. Yliopistojen alemmat tutkinnot (kandit) on jätetty pois, sillä ne ovat yleensä välitutkintoja matkalla maisteriin."
           />
         </CardHeader>
         <CardContent className="grid gap-6 sm:grid-cols-2">
