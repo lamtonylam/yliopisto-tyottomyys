@@ -267,7 +267,7 @@ export function OverviewView({ data, onOpenDegree }: OverviewViewProps) {
               format={(value) => fmtPct(value)}
               reference={{
                 value: fieldReference ?? 0,
-                label: `koko sektorin keskiarvo ${fmtPct(fieldReference)}`,
+                label: `koko ${fieldSector === "university" ? "yliopiston" : "AMK:n"} keskiarvo ${fmtPct(fieldReference)}`,
               }}
               rows={fields.map((field) => ({
                 id: field.field,
